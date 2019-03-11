@@ -1,3 +1,11 @@
+/*
+Author:	John Harrison
+File:	main.cpp
+Class:	CST352 Operating Systems
+
+Note:	File containing main entry point as described by the assignment notes
+*/
+
 #include <Windows.h>	/* Threads & locks */
 #include <iostream>		/* IO */
 #include "SafeRing.h"	/* Safe ring class*/
@@ -9,20 +17,72 @@
 #define CONSUMER_COUNT 2
 #define ITEMS_TO_PRODUCE 10
 #define MS_TIMEOUT 10
-#define ARRAY_SIZE 10
+#define ARRAY_SIZE 5
+#define TESTMODE FALSE
 
-//template function to start the threads into the class
-template<typename T>
-DWORD __stdcall StartTemplate(LPVOID arg)
-{
-	if (!arg)
-		return 0;
-	T *class_ptr = (T*)arg;
-	class_ptr->Start();
-	return 1;
+#if TESTMODE == TRUE
+#include <string>
+using namespace std;
+HANDLE lock1, lock2;
+
+string threadNames[10];
+
+struct randStuct {
+	int index;
+	HANDLE lock;
+};
+
+DWORD __stdcall randFunc(LPVOID arg) {
+	randStuct* args = (randStuct*)arg;
+	while (true) {
+		IOSYNC(cout << threadNames[args->index] << " waiting " << args->lock << endl);
+		WaitForSingleObject(args->lock, INFINITE);
+		IOSYNC(cout << threadNames[args->index] << " got " << args->lock << endl);
+		ReleaseMutex(args->lock);
+		IOSYNC(cout << threadNames[args->index] << " released " << args->lock << endl);
+		//Sleep(10);
+	}
+	
 }
 
-int main(int argc, char** argv) 
+int main() {
+	lock1 = CreateMutex(NULL, FALSE, NULL);
+	lock2 = CreateMutex(NULL, FALSE, NULL);
+	HANDLE handles[2] = { lock1, lock2 };
+	for (int i = 0; i < 10; i++) {
+		threadNames[i] = "Thread" + to_string(i);
+	}
+
+	for (int i = 0; i <= 4; i++) {
+		randStuct* st = new randStuct();
+		st->index = i;
+		st->lock = lock1;
+		CreateThread(NULL, NULL, randFunc, st, 0, NULL);
+	}
+
+	for (int i = 5; i <= 9; i++) {
+		randStuct* st = new randStuct();
+		st->index = i;
+		st->lock = lock2;
+		CreateThread(NULL, NULL, randFunc, st, 0, NULL);
+	}
+
+	HANDLE cthread = GetCurrentThread();
+	SetThreadPriority(cthread, GetThreadPriority(cthread) + 2);
+	IOSYNC(cout << "Main waiting for locks" << endl);
+	WaitForMultipleObjects(2, handles, TRUE, INFINITE);
+	IOSYNC(cout << "Main got the locks!" << endl);
+	getchar();
+}
+
+#else
+/// <summary>
+/// Mains the specified argc.
+/// </summary>
+/// <param name="argc">The argc.</param>
+/// <param name="argv">The argv.</param>
+/// <returns>Result code (always default :) )</returns>
+int main(int argc, char** argv)
 {
 	SafeRing safeRing(ARRAY_SIZE);
 	HANDLE producerThreads[PRODUCER_COUNT];
@@ -41,7 +101,7 @@ int main(int argc, char** argv)
 		producerThreads[i] = CreateThread(
 			NULL,
 			NULL,
-			StartTemplate<Producer>,
+			start_template<Producer>,
 			producers[i],
 			0,
 			NULL
@@ -58,7 +118,7 @@ int main(int argc, char** argv)
 		consumerThreads[i] = CreateThread(
 			NULL,
 			NULL,
-			StartTemplate<Consumer>,
+			start_template<Consumer>,
 			consumers[i],
 			0,
 			NULL
@@ -86,11 +146,16 @@ int main(int argc, char** argv)
 	}
 
 	IOSYNC(std::wcout << L"Done. -John Harrison"<< std::endl);
-	getchar();
+
+	//pause. Crude but it works for a simple console pause
+	system("pause");
 
 	//delete our stuff
-	delete[] producers;
-	delete[] consumers;
+	for (auto deletable : producers)
+		delete deletable;
+	for (auto deletable : consumers)
+		delete deletable;
+
 	for (HANDLE h : producerThreads) {
 		CloseHandle(h);
 	}
@@ -98,3 +163,4 @@ int main(int argc, char** argv)
 		CloseHandle(h);
 	}
 }
+#endif

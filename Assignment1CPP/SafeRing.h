@@ -1,41 +1,20 @@
+/*
+Author:	John Harrison
+File:	safering.h
+Class:	CST352 Operating Systems
+
+Note:	Header file for safering class
+*/
 #pragma once
 #include <Windows.h>
+#include "utils.h"
 
-//#define DEBUG
-#define IOLOCKING
 
-#if defined(DEBUG) || defined(IOLOCKING)
-extern HANDLE ghIOLock;
-#endif
-
-//this is to simplify the debug lines
-#ifdef  DEBUG
-#define DEBUGLOG(x){						\
-WaitForSingleObject(ghIOLock,INFINITE);	\
-x;											\
-ReleaseMutex(ghIOLock);					\
-}
-#else
-#define DEBUGLOG(x)
-#endif //  DEBUG
-
-//io syncing for appearance
-#ifdef IOLOCKING
-#define IOSYNC(x) {						\
-WaitForSingleObject(ghIOLock,INFINITE);	\
-x;										\
-ReleaseMutex(ghIOLock);					\
-}
-#else
-#define IOSYNC(x)
-#endif
-
-/*=======================================================================================
-SafeRing::Count
-Purpose:
-Thread safe method to get the number of elements in the data structure
-*///=====================================================================================
-class SafeRing{
+/// <summary>
+/// Safe ring class.
+/// Thread safe data collection
+/// </summary>
+class SafeRing {
 public:
 	SafeRing(int capacity);
 	~SafeRing();

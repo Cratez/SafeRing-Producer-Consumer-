@@ -1,16 +1,15 @@
+/*
+Author:	John Harrison
+File:	SafeRing.cpp
+Class:	CST352 Operating Systems
+
+Note:	cpp file for SafeRing class
+*/
 #include "SafeRing.h"
 #include "TimeoutException.h"
 #include <exception>
 #include <Windows.h>
 #include <iostream>
-
-#if defined(DEBUG) || defined(IOLOCKING)
-HANDLE ghIOLock = CreateMutex(
-	NULL,
-	FALSE,
-	NULL
-);
-#endif
 
 //CTOR
 SafeRing::SafeRing(int capacity) :
@@ -24,7 +23,7 @@ SafeRing::SafeRing(int capacity) :
 	}
 	catch (std::bad_alloc& ba) {
 		//logging just for tracability
-		IOSYNC(std::wcout << "Bad allocation. Please try a smaller capacity" << std::endl);
+		IOSYNC(std::wcout << L"Bad allocation. Please try a smaller capacity" << std::endl);
 
 		//throwing back the catch
 		throw ba;
@@ -63,14 +62,11 @@ SafeRing::~SafeRing()
 	closeHandles();
 }
 
-/*=======================================================================================
-SafeRing::Insert
-Params:
-	int value:	The value to be inserted into the data structure
-	int msTimeout: Optional timeout for the lock wait. Will ignore if negative
-Purpose:
-	This is a thread safe method for inserting values into the data structure.
-*///=====================================================================================
+/// <summary>
+/// Inserts the specified value.
+/// </summary>
+/// <param name="value">The value.</param>
+/// <param name="msTimeout">The ms timeout.</param>
 void SafeRing::Insert(int value, int msTimeout)
 {
 	HANDLE insertHandles[2] = { mhHasCapacity, mhInsertMutex };
@@ -106,7 +102,8 @@ void SafeRing::Insert(int value, int msTimeout)
 
 	case WAIT_TIMEOUT: //we timed out
 		DEBUGLOG(std::wcout << L"Thread timed out, ID: " << GetCurrentThreadId() << std::endl);
-		throw (DWORD)WAIT_TIMEOUT;
+		//throw (DWORD)WAIT_TIMEOUT;
+		throw TimeoutException(msTimeout);
 		break;
 
 	default:
@@ -123,13 +120,12 @@ void SafeRing::Insert(int value, int msTimeout)
 
 }
 
-/*=======================================================================================
-SafeRing::Remove
-Params:
-	int msTimeout: Optional timeout for the lock wait. Will ignore if negative
-Purpose:
-	This is a thread safe method for removing values from the array (SafeRing) data structure.
-*///=====================================================================================
+/// <summary>
+/// Removes the specified ms timeout.
+/// </summary>
+/// <param name="msTimeout">The ms timeout.</param>
+/// <param name="abortEvent">The abort event.</param>
+/// <returns>int: the value worked on</returns>
 int SafeRing::Remove(int msTimeout, HANDLE abortEvent)
 {
 	DWORD result;
@@ -195,7 +191,8 @@ int SafeRing::Remove(int msTimeout, HANDLE abortEvent)
 
 	case WAIT_TIMEOUT: //thread timed out
 		DEBUGLOG(std::wcout << L"Thread timed out on Remove, ID: " << GetCurrentThreadId() << std::endl);
-		throw (DWORD)WAIT_TIMEOUT;
+		//throw (DWORD)WAIT_TIMEOUT;
+		throw TimeoutException(msTimeout);
 		break;
 
 	default: //unkown issue
@@ -206,11 +203,11 @@ int SafeRing::Remove(int msTimeout, HANDLE abortEvent)
 	}
 }
 
-/*=======================================================================================
-SafeRing::Count
-Purpose:
-	Thread safe method to get the number of elements in the data structure
-*///=====================================================================================
+
+/// <summary>
+/// Gets the size of the safering
+/// </summary>
+/// <returns>int: the size</returns>
 int SafeRing::Count()
 {
 	HANDLE handles[2] = { mhInsertMutex, mhRemoveMutex };
@@ -246,7 +243,10 @@ int SafeRing::Count()
 	return i;
 }
 
-// private close handles method
+
+/// <summary>
+/// Closes the handles.
+/// </summary>
 void SafeRing::closeHandles()
 {
 	DEBUGLOG(std::wcout << L"Closing handles" << std::endl);

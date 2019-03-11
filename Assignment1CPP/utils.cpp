@@ -1,7 +1,20 @@
-#include "utils.h"
-int GetRand() {
-	static std::default_random_engine sGenerator;
-	static std::uniform_int_distribution<int> sDistribution(1, 1000);
+/*
+Author:	John Harrison
+File:	utils.cpp
+Class:	CST352 Operating Systems
 
-	return sDistribution(sGenerator);
-}
+Note:	cpp file for utils header
+*/
+
+#include "utils.h"
+
+#if defined(DEBUG) || defined(IOLOCKING)
+/// <summary>
+/// The global io lock
+/// </summary>
+HANDLE ghIOLock = CreateMutex(
+	NULL,
+	FALSE,
+	NULL
+);
+#endif
